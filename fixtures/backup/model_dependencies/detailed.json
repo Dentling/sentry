@@ -6505,7 +6505,7 @@
       "organization": {
         "kind": "FlexibleForeignKey",
         "model": "sentry.organization",
-        "nullable": false
+        "nullable": true
       },
       "owner_team": {
         "kind": "FlexibleForeignKey",
@@ -6517,6 +6517,11 @@
         "model": "sentry.user",
         "nullable": true
       },
+      "project": {
+        "kind": "FlexibleForeignKey",
+        "model": "sentry.project",
+        "nullable": true
+      },
       "workflow_condition_group": {
         "kind": "FlexibleForeignKey",
         "model": "workflow_engine.dataconditiongroup",
@@ -6525,7 +6530,7 @@
     },
     "model": "workflow_engine.detector",
     "relocation_dependencies": [],
-    "relocation_scope": "Organization",
+    "relocation_scope": "Excluded",
     "silos": [
       "Region"
     ],
@@ -6586,10 +6591,30 @@
   "workflow_engine.workflow": {
     "dangling": false,
     "foreign_keys": {
+      "created_by": {
+        "kind": "HybridCloudForeignKey",
+        "model": "sentry.user",
+        "nullable": true
+      },
+      "environment_id": {
+        "kind": "ImplicitForeignKey",
+        "model": "sentry.environment",
+        "nullable": true
+      },
       "organization": {
         "kind": "FlexibleForeignKey",
         "model": "sentry.organization",
         "nullable": false
+      },
+      "owner_team": {
+        "kind": "FlexibleForeignKey",
+        "model": "sentry.team",
+        "nullable": true
+      },
+      "owner_user_id": {
+        "kind": "HybridCloudForeignKey",
+        "model": "sentry.user",
+        "nullable": true
       },
       "when_condition_group": {
         "kind": "FlexibleForeignKey",
