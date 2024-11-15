@@ -36,7 +36,7 @@ class BaseVariant:
         return None
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self.type
 
     def _get_metadata_as_dict(self):
@@ -140,11 +140,11 @@ class ComponentVariant(BaseVariant):
         # TODO: s/`config`/`strategy_config`
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self.component.description
 
     @property
-    def contributes(self):
+    def contributes(self) -> bool:
         return self.component.contributes
 
     def get_hash(self) -> str | None:
@@ -192,7 +192,7 @@ class CustomFingerprintVariant(BaseVariant):
         # TODO: rename incoming `values` to `fingerprint`
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "custom fingerprint"
 
     def get_hash(self) -> str | None:
@@ -208,7 +208,7 @@ class BuiltInFingerprintVariant(CustomFingerprintVariant):
     type = "built_in_fingerprint"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "Sentry defined fingerprint"
 
 
@@ -234,7 +234,7 @@ class SaltedComponentVariant(ComponentVariant):
         # component: AppGroupingComponent | SystemGroupingComponent | DefaultGroupingComponent,
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "modified " + self.component.description
 
     def get_hash(self) -> str | None:
