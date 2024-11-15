@@ -56,7 +56,7 @@ class Migration(CheckedMigration):
                 migrations.AddField(
                     model_name="detector",
                     name="enabled",
-                    field=sentry.db.models.fields.bounded.BoundedPositiveIntegerField(default=1),
+                    field=models.BooleanField(default=True),
                 ),
             ],
         ),
@@ -90,7 +90,7 @@ class Migration(CheckedMigration):
                 migrations.AddField(
                     model_name="workflow",
                     name="enabled",
-                    field=sentry.db.models.fields.bounded.BoundedPositiveIntegerField(default=1),
+                    field=models.BooleanField(default=True),
                 ),
             ],
         ),
