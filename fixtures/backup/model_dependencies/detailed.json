@@ -6500,7 +6500,7 @@
     ]
   },
   "workflow_engine.detector": {
-    "dangling": false,
+    "dangling": true,
     "foreign_keys": {
       "organization": {
         "kind": "FlexibleForeignKey",
@@ -6530,7 +6530,7 @@
     },
     "model": "workflow_engine.detector",
     "relocation_dependencies": [],
-    "relocation_scope": "Excluded",
+    "relocation_scope": "Organization",
     "silos": [
       "Region"
     ],
