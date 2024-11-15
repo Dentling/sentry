@@ -1,9 +1,28 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
+from sentry.grouping.component import BaseGroupingComponent
+from sentry.grouping.fingerprinting import Fingerprint
 from sentry.grouping.utils import hash_from_values, is_default_fingerprint_var
 from sentry.types.misc import KeyedList
+
+if TYPE_CHECKING:
+    from sentry.grouping.api import FingerprintInfo
+    from sentry.grouping.strategies.base import StrategyConfiguration
+
+# from sentry.grouping.component import (
+#     AppGroupingComponent,
+#     BaseGroupingComponent,
+#     DefaultGroupingComponent,
+#     SystemGroupingComponent,
+# )
+
+
+class FingerprintDict(TypedDict):
+    values: Fingerprint
+    client_values: NotRequired[Fingerprint]
+    matched_rule: NotRequired[str]
 
 
 class BaseVariant:
@@ -106,15 +125,19 @@ class PerformanceProblemVariant(BaseVariant):
 
 
 class ComponentVariant(BaseVariant):
-    """A component variant is a variant that produces a hash from the
-    `BaseGroupingComponent` it encloses.
-    """
+    """A variant that produces a hash from the `BaseGroupingComponent` it encloses."""
 
     type = "component"
 
-    def __init__(self, component, config):
+    def __init__(
+        self,
+        component: BaseGroupingComponent[Any],
+        config: StrategyConfiguration,
+    ):
         self.component = component
         self.config = config
+        # component: AppGroupingComponent | SystemGroupingComponent | DefaultGroupingComponent,
+        # TODO: s/`config`/`strategy_config`
 
     @property
     def description(self):
@@ -134,10 +157,12 @@ class ComponentVariant(BaseVariant):
         return super().__repr__() + f" contributes={self.contributes} ({self.description})"
 
 
-def expose_fingerprint_dict(values, info=None):
-    rv = {
+def expose_fingerprint_dict(values: Fingerprint, info: FingerprintInfo) -> FingerprintDict:
+    rv: FingerprintDict = {
         "values": values,
     }
+    # TODO: s/`info`/`fingerprint_info`
+    # TODO: s/`values`/`fingerprint`
     if not info:
         return rv
 
@@ -161,9 +186,10 @@ class CustomFingerprintVariant(BaseVariant):
 
     type = "custom_fingerprint"
 
-    def __init__(self, values, fingerprint_info=None):
+    def __init__(self, values: Fingerprint, fingerprint_info: FingerprintInfo):
         self.values = values
         self.info = fingerprint_info
+        # TODO: rename incoming `values` to `fingerprint`
 
     @property
     def description(self):
@@ -172,7 +198,7 @@ class CustomFingerprintVariant(BaseVariant):
     def get_hash(self) -> str | None:
         return hash_from_values(self.values)
 
-    def _get_metadata_as_dict(self):
+    def _get_metadata_as_dict(self) -> FingerprintDict:
         return expose_fingerprint_dict(self.values, self.info)
 
 
@@ -191,10 +217,21 @@ class SaltedComponentVariant(ComponentVariant):
 
     type = "salted_component"
 
-    def __init__(self, values, component, config, fingerprint_info=None):
+    def __init__(
+        self,
+        values: Fingerprint,
+        component: BaseGroupingComponent[Any],
+        config: StrategyConfiguration,
+        fingerprint_info: FingerprintInfo,
+    ):
         ComponentVariant.__init__(self, component, config)
         self.values = values
         self.info = fingerprint_info
+        # TODO: use super above
+        # TODO: rename incoming `values` to `fingerprint`
+        # TODO: s/`config`/`strategy_config`
+        # TODO: s/`info`/`fingerprint_info`
+        # component: AppGroupingComponent | SystemGroupingComponent | DefaultGroupingComponent,
 
     @property
     def description(self):
@@ -203,7 +240,7 @@ class SaltedComponentVariant(ComponentVariant):
     def get_hash(self) -> str | None:
         if not self.component.contributes:
             return None
-        final_values = []
+        final_values: list[str | int] = []
         for value in self.values:
             if is_default_fingerprint_var(value):
                 final_values.extend(self.component.iter_values())

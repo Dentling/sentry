@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Generator, Iterator, Sequence
 from typing import Any, Self
 
@@ -30,25 +31,23 @@ def _calculate_contributes[ValuesType](values: Sequence[ValuesType]) -> bool:
     return False
 
 
-class BaseGroupingComponent[ValuesType: str | int | BaseGroupingComponent[Any]]:
+class BaseGroupingComponent[ValuesType: str | int | BaseGroupingComponent[Any]](ABC):
     """A grouping component is a recursive structure that is flattened
     into components to make a hash for grouping purposes.
     """
 
-    id: str = "default"
+    id: str
     hint: str | None = None
     contributes: bool = False
     values: Sequence[ValuesType]
 
     def __init__(
         self,
-        id: str | None = None,
         hint: str | None = None,
         contributes: bool | None = None,
         values: Sequence[ValuesType] | None = None,
         variant_provider: bool = False,
     ):
-        self.id = id or self.id
         self.variant_provider = variant_provider
 
         self.update(
@@ -144,9 +143,14 @@ class BaseGroupingComponent[ValuesType: str | int | BaseGroupingComponent[Any]]:
         rv.values = list(self.values)
         return rv
 
-    def iter_values(self) -> Generator[str | int | BaseGroupingComponent[Any]]:
+    def iter_values(self) -> Generator[str | int]:
         """Recursively walks the component and flattens it into a list of
         values.
+        """
+        # TODO:
+        """
+        Recursively walks the component tree, gathering leaf (literal) values from contributing
+        branches into a flat list.
         """
         if self.contributes:
             for value in self.values:
@@ -212,7 +216,7 @@ class FunctionGroupingComponent(BaseGroupingComponent[str]):
     id: str = "function"
 
 
-class LineNumberGroupingComponent(BaseGroupingComponent[str]):
+class LineNumberGroupingComponent(BaseGroupingComponent[int]):
     id: str = "lineno"
 
 
@@ -319,3 +323,41 @@ class TemplateGroupingComponent(
     BaseGroupingComponent[ContextLineGroupingComponent | FilenameGroupingComponent]
 ):
     id: str = "template"
+
+
+# Wrapper components used to link component trees to variants
+
+
+class DefaultGroupingComponent(
+    BaseGroupingComponent[
+        CSPGroupingComponent
+        | ExpectCTGroupingComponent
+        | ExpectStapleGroupingComponent
+        | HPKPGroupingComponent
+        | MessageGroupingComponent
+        | TemplateGroupingComponent
+    ]
+):
+    id: str = "default"
+
+
+class AppGroupingComponent(
+    BaseGroupingComponent[
+        ChainedExceptionGroupingComponent
+        | ExceptionGroupingComponent
+        | StacktraceGroupingComponent
+        | ThreadsGroupingComponent
+    ]
+):
+    id: str = "app"
+
+
+class SystemGroupingComponent(
+    BaseGroupingComponent[
+        ChainedExceptionGroupingComponent
+        | ExceptionGroupingComponent
+        | StacktraceGroupingComponent
+        | ThreadsGroupingComponent
+    ]
+):
+    id: str = "system"

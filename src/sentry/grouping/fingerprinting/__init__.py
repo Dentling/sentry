@@ -108,6 +108,37 @@ class _ReleaseInfo(TypedDict):
     release: str | None
 
 
+Fingerprint = list[str]
+
+
+class FingerprintRuleAttributes(TypedDict):
+    title: NotRequired[str]
+
+
+# Specifically, a list of [<name of event attribute to match>, <value to match>]
+FingerprintMatchConfig = list[str]
+FingerprintMatchJSON = list[str]
+
+
+class FingerprintRuleConfig(TypedDict):
+    matchers: list[FingerprintMatchConfig]
+    fingerprint: Fingerprint
+    attributes: NotRequired[FingerprintRuleAttributes]
+    is_builtin: NotRequired[bool]
+
+
+# This is just `FingerprintRuleConfig` with an extra `text` entry and with `attributes` required
+# rather than optional. (Unfortunately, you can't overwrite lack of required-ness when subclassing a
+# TypedDict, so we have to create the full type independently.)
+class FingerprintRuleJSON(TypedDict):
+    text: str
+    matchers: list[FingerprintMatchJSON]
+    fingerprint: Fingerprint
+    attributes: FingerprintRuleAttributes
+    is_builtin: NotRequired[bool]
+
+
+# TODO: What is the point of this? Maybe rename to EventDataAccessor or something?
 class EventAccess:
     def __init__(self, event: Mapping[str, Any]) -> None:
         self.event = event
@@ -338,7 +369,12 @@ MATCHERS = {
 
 
 class FingerprintMatch:
-    def __init__(self, key: str, pattern: str, negated: bool = False) -> None:
+    def __init__(
+        self,
+        key: str,  # The event attribute on which to match
+        pattern: str,  # The value to match (or not, depending on `negated`)
+        negated: bool = False,  # If True, match when `event[key]` does NOT equal `pattern`
+    ) -> None:
         if key.startswith("tags."):
             self.key = key
         else:
@@ -385,12 +421,14 @@ class FingerprintMatch:
         return False
 
     def _positive_match(self, values: dict[str, Any]) -> bool:
-        # path is special in that it tests against two values (abs_path and path)
+        # `path` is special in that it tests against two values (`abs_path` and `filename`)
         if self.key == "path":
             value = values.get("abs_path")
             if self._positive_path_match(value):
                 return True
             alt_value = values.get("filename")
+            # TODO: Make sure it works to replace the four lines below with
+            # return alt_value != value and self._positive_path_match(value)
             if alt_value != value:
                 if self._positive_path_match(value):
                     return True
@@ -407,19 +445,12 @@ class FingerprintMatch:
         value = values.get(self.key)
         if value is None:
             return False
-        elif self.key == "package":
+        elif self.key in ["package", "release"]:
             if self._positive_path_match(value):
                 return True
-        elif self.key == "family":
+        elif self.key in ["family", "sdk"]:
             flags = self.pattern.split(",")
             if "all" in flags or value in flags:
-                return True
-        elif self.key == "sdk":
-            flags = self.pattern.split(",")
-            if "all" in flags or value in flags:
-                return True
-        elif self.key == "release":
-            if self._positive_path_match(value):
                 return True
         elif self.key == "app":
             ref_val = get_rule_bool(self.pattern)
@@ -429,14 +460,17 @@ class FingerprintMatch:
             return True
         return False
 
-    def _to_config_structure(self) -> list[str]:
+    def _to_config_structure(self) -> FingerprintMatchJSON:
         key = self.key
         if self.negated:
             key = "!" + key
         return [key, self.pattern]
 
+    # TODO: s/`obj`/`matcher`
+    # TODO: unpack in first line into `key, pattern`
+    # TODO: make negated = key.startswith("!"), then do if negated: key = key.lstrip("!")
     @classmethod
-    def _from_config_structure(cls, obj: Sequence[str]) -> Self:
+    def _from_config_structure(cls, obj: FingerprintMatchConfig) -> Self:
         key = obj[0]
         if key.startswith("!"):
             key = key[1:]
@@ -458,8 +492,8 @@ class FingerprintRule:
     def __init__(
         self,
         matchers: Sequence[FingerprintMatch],
-        fingerprint: list[str],
-        attributes: dict[str, Any],
+        fingerprint: Fingerprint,
+        attributes: FingerprintRuleAttributes,
         is_builtin: bool = False,
     ) -> None:
         self.matchers = matchers
@@ -469,7 +503,7 @@ class FingerprintRule:
 
     def get_fingerprint_values_for_event_access(
         self, event_access: EventAccess
-    ) -> None | tuple[list[str], dict[str, Any]]:
+    ) -> None | tuple[Fingerprint, FingerprintRuleAttributes]:
         by_match_group: dict[str, list[FingerprintMatch]] = {}
         for matcher in self.matchers:
             by_match_group.setdefault(matcher.match_group, []).append(matcher)
@@ -483,8 +517,8 @@ class FingerprintRule:
 
         return self.fingerprint, self.attributes
 
-    def _to_config_structure(self) -> dict[str, Any]:
-        config_structure: dict[str, Any] = {
+    def _to_config_structure(self) -> FingerprintRuleJSON:
+        config_structure: FingerprintRuleJSON = {
             "text": self.text,
             "matchers": [x._to_config_structure() for x in self.matchers],
             "fingerprint": self.fingerprint,
@@ -496,8 +530,9 @@ class FingerprintRule:
             config_structure["is_builtin"] = True
         return config_structure
 
+    # TODO: s/`obj`/`rule_info`
     @classmethod
-    def _from_config_structure(cls, obj: dict[str, Any]) -> Self:
+    def _from_config_structure(cls, obj: FingerprintRuleConfig | FingerprintRuleJSON) -> Self:
         return cls(
             [FingerprintMatch._from_config_structure(x) for x in obj["matchers"]],
             obj["fingerprint"],
@@ -505,11 +540,11 @@ class FingerprintRule:
             obj.get("is_builtin") or False,
         )
 
-    def to_json(self) -> dict[str, Any]:
+    def to_json(self) -> FingerprintRuleJSON:
         return self._to_config_structure()
 
     @classmethod
-    def from_json(cls, json: dict[str, object]) -> Self:
+    def from_json(cls, json: FingerprintRuleConfig | FingerprintRuleJSON) -> Self:
         return cls._from_config_structure(json)
 
     @property
@@ -546,7 +581,7 @@ class FingerprintingVisitor(NodeVisitorBase):
         in_header = True
         for child in children:
             if isinstance(child, str):
-                if in_header and child[:2] == "##":
+                if in_header and child.startswith("##"):
                     changelog.append(child[2:].rstrip())
                 else:
                     in_header = False
@@ -572,7 +607,12 @@ class FingerprintingVisitor(NodeVisitorBase):
         self,
         _: object,
         children: tuple[
-            object, list[FingerprintMatch], object, object, object, tuple[list[str], dict[str, Any]]
+            object,
+            list[FingerprintMatch],
+            object,
+            object,
+            object,
+            tuple[Fingerprint, FingerprintRuleAttributes],
         ],
     ) -> FingerprintRule:
         _, matcher, _, _, _, (fingerprint, attributes) = children
@@ -582,6 +622,8 @@ class FingerprintingVisitor(NodeVisitorBase):
         self, _: object, children: tuple[object, list[str], str, object, str]
     ) -> FingerprintMatch:
         _, negation, ty, _, argument = children
+        # TODO: s/`ty`/`key`
+        # TODO: s/`argument`/`pattern`
         return FingerprintMatch(ty, argument, bool(negation))
 
     def visit_matcher_type(self, _: object, children: list[str]) -> str:
@@ -594,7 +636,7 @@ class FingerprintingVisitor(NodeVisitorBase):
 
     def visit_fingerprint(
         self, _: object, children: list[str | tuple[str, str]]
-    ) -> tuple[list[str], dict[str, str]]:
+    ) -> tuple[Fingerprint, FingerprintRuleAttributes]:
         fingerprint = []
         attributes = {}
         for item in children:
