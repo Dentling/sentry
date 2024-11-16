@@ -19,7 +19,7 @@ class TransactionStageStatus(IntEnum):
     REDIS_PUT = 1
 
     # a save_transactions task is kicked off
-    SAVE_TRX_STARTED = 2
+    SAVE_TXN_STARTED = 2
 
     # a save_transactions task is finished
     SAVE_TXN_FINISHED = 3
