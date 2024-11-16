@@ -22,7 +22,7 @@ class TransactionStageStatus(IntEnum):
     SAVE_TRX_STARTED = 2
 
     # a save_transactions task is finished
-    SAVE_TRX_FINISHED = 3
+    SAVE_TXN_FINISHED = 3
 
     # the transaction is published to the `events` topic for snuba/sbc consumers to consume
     SNUBA_TOPIC_PUT = 4
