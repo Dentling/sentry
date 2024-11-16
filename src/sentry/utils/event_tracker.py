@@ -40,30 +40,18 @@ class TransactionStageStatus(IntEnum):
 logger = logging.getLogger("EventTracker")
 
 
-def should_track(event_id: str, sample_rate) -> bool:
-    """
-    Normalize the integer to a float in the range [0, 1)
-    The event_float value is consistent, used for all or nothing logging throughout the entire pipeline
-    """
-    event_float = (int(event_id, 16) % 10000) / 10000
-    if event_float < sample_rate:
-        return True
-    return False
-
-
-def track_sampled_event(
-    event_id: str, event_type: str, status: TransactionStageStatus, sample_rate: float = None
-) -> None:
+def track_sampled_event(event_id: str, event_type: str, status: TransactionStageStatus) -> None:
     """
     Records how far an event has made it through the ingestion pipeline.
     Each event type will pick up its sampling rate from its registered option.
     """
+
+    sample_rate = options.get(f"performance.event-tracker.sample-rate.{event_type}")
     if sample_rate == 0:
         return
 
-    sample_rate = options.get(f"performance.event-tracker.sample-rate.{event_type}")
-    # explicitly use as killswitch to not let any events through
-    if should_track(event_id, sample_rate):
+    event_float = (int(event_id, 16) % 10000) / 10000
+    if event_float < sample_rate:
         extra = {
             "event_id": event_id,
             "event_type": getattr(EventType, event_type.upper(), None),
