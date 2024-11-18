@@ -5,8 +5,8 @@ const detectDeprecations = !!process.env.SENTRY_DETECT_DEPRECATIONS;
 module.exports = {
   root: true,
   extends: detectDeprecations
-    ? ['sentry-app/strict', 'plugin:deprecation/recommended']
-    : ['sentry-app/strict'],
+    ? ['sentry-app', 'plugin:deprecation/recommended']
+    : ['sentry-app'],
 
   parserOptions: detectDeprecations
     ? {
@@ -22,6 +22,23 @@ module.exports = {
     jest: true,
   },
   rules: {
+    'no-console': ['error'],
+
+    // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-is-mounted.md
+    'react/no-is-mounted': ['error'],
+
+    // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-find-dom-node.md
+    // Recommended to use callback refs instead
+    'react/no-find-dom-node': ['error'],
+
+    // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-string-refs.md
+    // This is now considered legacy, callback refs preferred
+    'react/no-string-refs': ['error'],
+
+    'jest/no-large-snapshots': ['error', {maxSize: 2000}],
+
+    'sentry/no-styled-shortcut': ['error'],
+
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': [
       'error',
@@ -138,8 +155,25 @@ module.exports = {
     },
     {
       files: ['static/**/*.spec.{ts,js}', 'tests/js/**/*.{ts,js}'],
-      extends: ['plugin:testing-library/react', 'sentry-app/strict'],
+      extends: ['plugin:testing-library/react', 'sentry-app'],
       rules: {
+        'no-console': ['error'],
+
+        // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-is-mounted.md
+        'react/no-is-mounted': ['error'],
+
+        // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-find-dom-node.md
+        // Recommended to use callback refs instead
+        'react/no-find-dom-node': ['error'],
+
+        // https://github.com/yannickcr/eslint-plugin-react/blob/master/docs/rules/no-string-refs.md
+        // This is now considered legacy, callback refs preferred
+        'react/no-string-refs': ['error'],
+
+        'jest/no-large-snapshots': ['error', {maxSize: 2000}],
+
+        'sentry/no-styled-shortcut': ['error'],
+
         // TODO(@anonrig): Remove this from eslint-sentry-config
         'space-infix-ops': 'off',
         'object-shorthand': 'off',
